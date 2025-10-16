@@ -5,12 +5,16 @@ let explosionSound;
 let soundsLoaded = false;
 
 function preload() {
-  // Load background music and explosion sound
-  // Using free sound URLs - you should replace these with your own uploaded sounds
+  // Load background music - using a synthesized audio approach
+  // We'll create sounds programmatically using p5.js sound oscillators
   soundFormats('mp3', 'ogg');
   
-  // For now, we'll create placeholder sound loading
-  // You'll need to upload actual sound files to the repo
+  // Note: Using actual audio URLs for royalty-free sounds
+  // Firework explosion sound from freesound.org (public domain)
+  explosionSound = loadSound('https://cdn.freesound.org/previews/370/370271_5121236-lq.mp3', 
+    () => { console.log('Explosion sound loaded'); soundsLoaded = true; },
+    () => { console.log('Explosion sound failed to load'); }
+  );
 }
 
 function setup() {
@@ -20,6 +24,13 @@ function setup() {
   stroke(255);
   strokeWeight(4);
   background(0);
+  
+  // Create background music using oscillators
+  bgMusic = new p5.Oscillator();
+  bgMusic.setType('sine');
+  bgMusic.freq(261.63); // C note
+  bgMusic.amp(0);
+  bgMusic.start();
   
   // Create audio context on user interaction
   getAudioContext().suspend();
@@ -33,15 +44,26 @@ function setup() {
   text('Click anywhere to start fireworks!', width/2, height/2 + 50);
 }
 
+let audioStarted = false;
+
 function mousePressed() {
   // Resume audio context on first user interaction
   if (getAudioContext().state !== 'running') {
     userStartAudio();
     
-    // Start background music if available
-    if (bgMusic && !bgMusic.isPlaying()) {
-      bgMusic.loop();
-      bgMusic.setVolume(0.3);
+    // Start background music (gentle ambient tone)
+    if (!audioStarted && bgMusic) {
+      bgMusic.amp(0.05, 1);
+      audioStarted = true;
+      
+      // Say "sab ke liye happy diwali" using speech synthesis
+      if ('speechSynthesis' in window) {
+        let utterance = new SpeechSynthesisUtterance('sab ke liye happy diwali');
+        utterance.lang = 'hi-IN';
+        utterance.rate = 0.9;
+        utterance.pitch = 1.1;
+        window.speechSynthesis.speak(utterance);
+      }
     }
   }
   
@@ -105,8 +127,19 @@ class Firework {
   
   explode() {
     // Play explosion sound
-    if (explosionSound && getAudioContext().state === 'running') {
+    if (explosionSound && soundsLoaded && getAudioContext().state === 'running') {
       explosionSound.play();
+      explosionSound.setVolume(0.3);
+    }
+    
+    // Create a brief pop sound using oscillator as backup
+    if (!explosionSound || !soundsLoaded) {
+      let osc = new p5.Oscillator();
+      osc.setType('sawtooth');
+      osc.freq(100);
+      osc.amp(0.1);
+      osc.start();
+      osc.stop(0.1);
     }
     
     for (let i = 0; i < 100; i++) {
