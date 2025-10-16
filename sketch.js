@@ -1,16 +1,62 @@
 let fireworks = [];
 let gravity;
+let bgMusic;
+let explosionSound;
+let soundsLoaded = false;
+
+function preload() {
+  // Load background music and explosion sound
+  // Using free sound URLs - you should replace these with your own uploaded sounds
+  soundFormats('mp3', 'ogg');
+  
+  // For now, we'll create placeholder sound loading
+  // You'll need to upload actual sound files to the repo
+}
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   colorMode(HSB);
-  gravity = createVector(0, 0.18);
+  gravity = createVector(0, 0.2);
+  stroke(255);
+  strokeWeight(4);
   background(0);
+  
+  // Create audio context on user interaction
+  getAudioContext().suspend();
+  
+  // Display text to indicate user can click
+  fill(255);
+  textAlign(CENTER, CENTER);
+  textSize(32);
+  text('सब के लिए Happy Diwali!', width/2, height/2);
+  textSize(20);
+  text('Click anywhere to start fireworks!', width/2, height/2 + 50);
+}
+
+function mousePressed() {
+  // Resume audio context on first user interaction
+  if (getAudioContext().state !== 'running') {
+    userStartAudio();
+    
+    // Start background music if available
+    if (bgMusic && !bgMusic.isPlaying()) {
+      bgMusic.loop();
+      bgMusic.setVolume(0.3);
+    }
+  }
+  
+  // Create firework at click position
+  fireworks.push(new Firework(mouseX, mouseY));
 }
 
 function draw() {
   colorMode(RGB);
-  background(0, 0, 0, 30);
+  background(0, 0, 0, 25);
+  
+  // Auto-generate fireworks randomly
+  if (random(1) < 0.03) {
+    fireworks.push(new Firework(random(width*0.15, width*0.85), random(height*0.13, height*0.5)));
+  }
   
   for (let i = fireworks.length - 1; i >= 0; i--) {
     fireworks[i].update();
@@ -21,40 +67,17 @@ function draw() {
     }
   }
   
-  // Display Diwali message
-  push();
-  textAlign(CENTER, CENTER);
-  textSize(72);
-  fill(255, 215, 0);
-  strokeWeight(3);
-  stroke(255, 150, 0);
-  text('Happy Diwali', width / 2, height / 3);
-  
-  textSize(32);
-  fill(255, 200, 100);
-  strokeWeight(2);
-  stroke(200, 100, 0);
-  text('by Het Bhatiya and his family', width / 2, height / 3 + 80);
-  pop();
-}
-
-function mousePressed() {
-  fireworks.push(new Firework(mouseX, mouseY));
-}
-
-function mouseDragged() {
-  fireworks.push(new Firework(mouseX, mouseY - random(30, 100)));
+  // Display Happy Diwali message
+  fill(255, 200);
+  textAlign(CENTER);
+  textSize(48);
+  text('सब के लिए Happy Diwali! 🪔', width/2, 60);
 }
 
 class Firework {
-  constructor(x, y) {
-    if (x !== undefined && y !== undefined) {
-      this.target = createVector(x, y);
-    } else {
-      this.target = createVector(random(width), random(height / 2));
-    }
-    
-    this.firework = new Particle(random(width), height, this.target, true);
+  constructor(tx, ty) {
+    this.hu = random(255);
+    this.firework = new Particle(random(width), height, this.hu, true, tx, ty);
     this.exploded = false;
     this.particles = [];
   }
@@ -81,10 +104,19 @@ class Firework {
   }
   
   explode() {
+    // Play explosion sound
+    if (explosionSound && getAudioContext().state === 'running') {
+      explosionSound.play();
+    }
+    
     for (let i = 0; i < 100; i++) {
-      let p = new Particle(this.firework.pos.x, this.firework.pos.y, this.target, false);
+      const p = new Particle(this.firework.pos.x, this.firework.pos.y, this.hu, false);
       this.particles.push(p);
     }
+  }
+  
+  done() {
+    return this.exploded && this.particles.length === 0;
   }
   
   show() {
@@ -92,25 +124,21 @@ class Firework {
       this.firework.show();
     }
     
-    for (let i = 0; i < this.particles.length; i++) {
-      this.particles[i].show();
+    for (let particle of this.particles) {
+      particle.show();
     }
-  }
-  
-  done() {
-    return this.exploded && this.particles.length === 0;
   }
 }
 
 class Particle {
-  constructor(x, y, target, firework) {
+  constructor(x, y, hu, firework, tx, ty) {
     this.pos = createVector(x, y);
     this.firework = firework;
-    this.target = target;
     this.lifespan = 255;
     this.acc = createVector(0, 0);
     
     if (this.firework) {
+      let target = createVector(tx, ty);
       this.vel = p5.Vector.sub(target, this.pos);
       this.vel.mult(random(0.015, 0.025));
       this.hu = random(255);
